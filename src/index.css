@@ -176,13 +176,12 @@
   body {
     background: white !important;
     color: black !important;
-  }
-
-  html, body, #root {
-    width: 100% !important;
-    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+
+  html {
+    background: white !important;
   }
 
   .print\:hidden {
@@ -198,21 +197,18 @@
     size: A4;
   }
 
-  /* Hide everything except the overlay and its contents */
-  * {
+  /* Hide the main app chrome */
+  /* Only hide the main app chrome when the piano sheet overlay is present */
+  body:has(#piano-sheet-overlay) div[class*="min-h-screen"],
+  body:has(#piano-sheet-overlay) main,
+  body:has(#piano-sheet-overlay) nav,
+  body:has(#piano-sheet-overlay) #bottom-nav {
     display: none !important;
   }
-
-  html, body, #root, #piano-sheet-overlay {
-    display: block !important;
-  }
-
-  #piano-sheet-overlay * {
-    display: block !important;
-  }
-
+  /* Show the overlay */
   #piano-sheet-overlay {
     position: static !important;
+    display: block !important;
     background: white !important;
     color: black !important;
     width: 100% !important;
@@ -220,17 +216,25 @@
     margin: 0 !important;
     padding: 0 !important;
     z-index: auto !important;
+    inset: auto !important;
+    flex-direction: column;
   }
 
+  /* Hide the no-print elements */
   .piano-sheet-no-print {
     display: none !important;
   }
 
+  /* Show the print title */
   .piano-sheet-print-title {
     display: block !important;
     color: black !important;
+    font-weight: bold !important;
+    font-size: 2rem !important;
+    margin-bottom: 1.5rem !important;
   }
 
+  /* Style the content */
   .piano-sheet-content {
     display: block !important;
     overflow: visible !important;
@@ -238,38 +242,46 @@
     height: auto !important;
   }
 
+  /* Grid layout */
   .piano-sheet-grid {
     display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
-    width: 100% !important;
     gap: 1.5rem !important;
+    width: 100% !important;
   }
 
+  /* Card styling */
   .piano-sheet-card {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    background: white !important;
-    border: 1px solid #ccc !important;
-    page-break-inside: avoid !important;
-    padding: 1rem !important;
-  }
-
-  .piano-sheet-card * {
     display: block !important;
+    background: white !important;
+    border: 1px solid #333 !important;
+    padding: 1rem !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .piano-sheet-label {
+    display: block !important;
     color: black !important;
     font-weight: bold !important;
+    margin-bottom: 0.5rem !important;
   }
 
   .piano-sheet-sublabel {
-    color: #666 !important;
-    font-size: 0.875rem !important;
+    display: block !important;
+    color: #555 !important;
+    font-size: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
   }
 
+  /* Ensure SVGs render */
   svg {
     display: block !important;
+    color: black !important;
+  }
+
+  /* Ensure text is readable */
+  p {
+    color: black !important;
   }
 }

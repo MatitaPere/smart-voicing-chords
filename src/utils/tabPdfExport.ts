@@ -66,6 +66,9 @@ export function exportTabPdf(opts: ExportOptions) {
   // Obj 2: Pages (placeholder, updated later)
   addObj("");
 
+  // Obj 3: Font (created early so its ID is known for page resources)
+  const fontId = addObj("");
+
   const pageObjIds: number[] = [];
   const streamObjIds: number[] = [];
 
@@ -154,11 +157,10 @@ export function exportTabPdf(opts: ExportOptions) {
     // Create page object
     const pageId = addObj("");
     pageObjIds.push(pageId);
-    objects[pageId - 1] = `${pageId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Contents ${streamId} 0 R /Resources << /Font << /F1 ${objCount + 1} 0 R >> >> >>\nendobj`;
+    objects[pageId - 1] = `${pageId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Contents ${streamId} 0 R /Resources << /Font << /F1 ${fontId} 0 R >> >> >>\nendobj`;
   }
 
-  // Font object
-  const fontId = addObj("");
+  // Font object (fill in the placeholder created earlier)
   objects[fontId - 1] = `${fontId} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>\nendobj`;
 
   // Update Pages object

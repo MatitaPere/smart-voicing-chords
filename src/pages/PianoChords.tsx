@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Piano, Star, FileText, Plus, Trash2, X, Printer, Volume2, Settings2, Sun, Moon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -287,12 +288,13 @@ const PianoChords = () => {
       </div>
 
       {/* PDF Sheet overlay */}
-      {showSheet && (
+      {showSheet && createPortal(
         <PianoSheetOverlay
           entries={sheetEntries}
           onRemove={removeFromSheet}
           onClose={() => setShowSheet(false)}
-        />
+        />,
+        document.body
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Guitar, Plus, Volume2, Settings2, Star, Timer, Sun, Moon } from "lucide-react";
+import { Search, Guitar, Plus, Volume2, Settings2, Star, Timer, Sun, Moon, FileText, Trash2, X, Printer } from "lucide-react";
 import { getAllChordsWithCustom, searchChords, rootNotes, suffixes, suffixLabels, suffixDescriptions } from "@/data/chords";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -123,6 +124,18 @@ const Index = () => {
   const expandedChord = expandedChordId
     ? allChords.find(c => `${c.key}-${c.suffix}` === expandedChordId) ?? null
     : null;
+
+  interface SheetEntry { chord: Chord; voicingIdx: number; }
+  const [sheetEntries, setSheetEntries] = useState<SheetEntry[]>([]);
+  const [showSheet, setShowSheet] = useState(false);
+
+  const addToSheet = useCallback((chord: Chord, voicingIdx: number) => {
+    setSheetEntries(prev => [...prev, { chord, voicingIdx }]);
+  }, []);
+
+  const removeFromSheet = useCallback((i: number) => {
+    setSheetEntries(prev => prev.filter((_, idx) => idx !== i));
+  }, []);
 
   return (
     <div className="min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden">
@@ -287,6 +300,15 @@ const Index = () => {
                 </PopoverContent>
               </Popover>
 
+              {sheetEntries.length > 0 && (
+                <button
+                  onClick={() => setShowSheet(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Sheet ({sheetEntries.length})
+                </button>
+              )}
               <button
                 onClick={() => setShowTimer(p => !p)}
                 className={`p-2 rounded-xl transition-colors ${
@@ -566,7 +588,7 @@ const Index = () => {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden mb-2"
                   >
-                    <InlineVoicingPanel chord={chord} playChord={playChord} capoFret={capoFret} allChords={allChords} onSelectChord={handleChordSelect} activeScaleKey={scaleKey} activeScaleType={scaleType} />
+                    <InlineVoicingPanel chord={chord} playChord={playChord} capoFret={capoFret} allChords={allChords} onSelectChord={handleChordSelect} activeScaleKey={scaleKey} activeScaleType={scaleType} onAddToSheet={addToSheet} />
                   </motion.div>
                 );
               })()}
@@ -619,7 +641,7 @@ const Index = () => {
         </div>
         <div className="flex-1 overflow-y-auto p-4 pb-16">
           {expandedChord ? (
-            <InlineVoicingPanel chord={expandedChord} playChord={playChord} capoFret={capoFret} allChords={allChords} onSelectChord={handleChordSelect} activeScaleKey={scaleKey} activeScaleType={scaleType} />
+            <InlineVoicingPanel chord={expandedChord} playChord={playChord} capoFret={capoFret} allChords={allChords} onSelectChord={handleChordSelect} activeScaleKey={scaleKey} activeScaleType={scaleType} onAddToSheet={addToSheet} />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground/50 gap-2 mt-16">
               <Guitar className="w-10 h-10" />
@@ -643,13 +665,23 @@ const Index = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Sheet overlay */}
+      {showSheet && createPortal(
+        <GuitarSheetOverlay
+          entries={sheetEntries}
+          onRemove={removeFromSheet}
+          onClose={() => setShowSheet(false)}
+        />,
+        document.body
+      )}
     </div>
   );
 };
 
 /** Inline voicing expansion panel showing all voicings with diagrams */
 function InlineVoicingPanel({
-  chord, playChord, capoFret = 0, allChords = [], onSelectChord, activeScaleKey, activeScaleType,
+  chord, playChord, capoFret = 0, allChords = [], onSelectChord, activeScaleKey, activeScaleType, onAddToSheet,
 }: {
   chord: Chord;
   playChord: (v: any) => void;
@@ -658,6 +690,7 @@ function InlineVoicingPanel({
   onSelectChord?: (chord: Chord) => void;
   activeScaleKey?: string | null;
   activeScaleType?: string;
+  onAddToSheet?: (chord: Chord, voicingIdx: number) => void;
 }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [showFretboard, setShowFretboard] = useState(false);
@@ -689,6 +722,15 @@ function InlineVoicingPanel({
         <span className="text-[10px] text-muted-foreground ml-auto">
           {chord.voicings.length} voicing{chord.voicings.length !== 1 ? "s" : ""}
         </span>
+        {onAddToSheet && (
+          <button
+            onClick={() => onAddToSheet(chord, activeIdx)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 text-[10px] font-semibold transition-colors ml-2"
+          >
+            <Plus className="w-3 h-3" />
+            Add
+          </button>
+        )}
       </div>
 
       {/* Large active diagram */}
@@ -811,6 +853,78 @@ function InlineVoicingPanel({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Guitar Sheet overlay ──────────────────────────────────────────────────────────
+
+function GuitarSheetOverlay({
+  entries,
+  onRemove,
+  onClose,
+}: {
+  entries: { chord: Chord; voicingIdx: number }[];
+  onRemove: (i: number) => void;
+  onClose: () => void;
+}) {
+  function handlePrint() {
+    window.print();
+  }
+
+  return (
+    <div id="piano-sheet-overlay" className="piano-sheet-overlay fixed inset-0 z-[60] bg-background flex flex-col">
+      {/* Header — hidden during print */}
+      <div className="piano-sheet-no-print sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center gap-3">
+        <button onClick={onClose} className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground">
+          <X className="w-5 h-5" />
+        </button>
+        <h2 className="text-lg font-semibold text-foreground flex-1">Chord Reference Sheet</h2>
+        <button
+          onClick={handlePrint}
+          disabled={entries.length === 0}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40"
+        >
+          <Printer className="w-4 h-4" />
+          Print / Save PDF
+        </button>
+      </div>
+
+      {/* Sheet content */}
+      <div className="flex-1 overflow-y-auto p-6 piano-sheet-content">
+        {entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2">
+            <Guitar className="w-10 h-10 opacity-30" />
+            <p>No chords added yet.</p>
+            <p className="text-xs opacity-60">Go back and click "Add to Sheet" on any voicing.</p>
+          </div>
+        ) : (
+          <>
+            <h1 className="piano-sheet-print-title hidden text-2xl font-bold text-black mb-6">Guitar Chord Reference Sheet</h1>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 piano-sheet-grid">
+              {entries.map((entry, i) => (
+                <div key={i} className="piano-sheet-card relative flex flex-col items-center gap-2 p-3 bg-card rounded-xl border border-border/40">
+                  <button
+                    onClick={() => onRemove(i)}
+                    className="piano-sheet-no-print absolute top-2 right-2 w-5 h-5 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                  <p className="text-base font-bold text-foreground piano-sheet-label">{entry.chord.label}</p>
+                  <p className="text-[10px] text-muted-foreground piano-sheet-sublabel">{entry.chord.voicings[entry.voicingIdx].name}</p>
+                  <div className="w-full max-w-[160px]">
+                    <ChordDiagram voicing={entry.chord.voicings[entry.voicingIdx]} size="lg" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    {entry.chord.voicings[entry.voicingIdx].positions.map(p => p === -1 ? "x" : p.toString()).join(" · ")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
