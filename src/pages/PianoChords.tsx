@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Piano, Star, FileText, Plus, Trash2, X, Printer, Volume2, Settings2, Sun, Moon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -287,12 +288,13 @@ const PianoChords = () => {
       </div>
 
       {/* PDF Sheet overlay */}
-      {showSheet && (
+      {showSheet && createPortal(
         <PianoSheetOverlay
           entries={sheetEntries}
           onRemove={removeFromSheet}
           onClose={() => setShowSheet(false)}
-        />
+        />,
+        document.body
       )}
     </div>
   );
@@ -407,14 +409,7 @@ function PianoSheetOverlay({
   onClose: () => void;
 }) {
   function handlePrint() {
-    // If the sheet overlay isn't open, open it first so print CSS shows the sheet.
-    if (!showSheet) {
-      setShowSheet(true);
-      // Give React time to render the overlay before invoking print
-      setTimeout(() => window.print(), 300);
-    } else {
-      window.print();
-    }
+    window.print();
   }
 
   return (
