@@ -3,7 +3,9 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Piano, Star, FileText, Plus, Trash2, X, Printer, Volume2, Settings2, Sun, Moon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { createPortal } from "react-dom";
 import { useFavorites } from "@/hooks/useFavorites";
+import PianoVoicingCreator from "@/components/PianoVoicingCreator";
 import { usePianoPlayer } from "@/hooks/usePianoPlayer";
 import { useTheme, setTheme } from "@/hooks/useTheme";
 import type { ThemeMode, ThemeAccent } from "@/hooks/useTheme";
@@ -25,10 +27,12 @@ const PianoChords = () => {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [sheetEntries, setSheetEntries] = useState<SheetEntry[]>([]);
   const [showSheet, setShowSheet] = useState(false);
+  const [showCreator, setShowCreator] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { favorites, toggleFavorite, isFavorite } = useFavorites();
 
   const { theme } = useTheme();
-  const allChords = useMemo(() => getAllPianoChords(), []);
+  const allChords = useMemo(() => getAllPianoChords(), [refreshKey]);
 
   const filteredChords = useMemo(() => {
     let results = query ? searchPianoChords(query) : allChords;
@@ -90,6 +94,13 @@ const PianoChords = () => {
                 title="Favorites"
               >
                 <Star className={`w-4 h-4 ${showFavoritesOnly ? "fill-yellow-400" : ""}`} />
+              </button>
+              <button
+                onClick={() => setShowCreator(true)}
+                className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                title="Create voicing"
+              >
+                <Plus className="w-4 h-4" />
               </button>
               <Popover>
                 <PopoverTrigger asChild>
@@ -288,6 +299,15 @@ const PianoChords = () => {
       </div>
 
       {/* PDF Sheet overlay */}
+      <AnimatePresence>
+        {showCreator && (
+          <PianoVoicingCreator
+            onClose={() => setShowCreator(false)}
+            onSaved={() => setRefreshKey(k => k + 1)}
+          />
+        )}
+      </AnimatePresence>
+
       {showSheet && createPortal(
         <PianoSheetOverlay
           entries={sheetEntries}

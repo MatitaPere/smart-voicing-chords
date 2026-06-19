@@ -661,7 +661,54 @@ export const pianoSuffixLabels: Record<string, string> = {
 };
 
 export function getAllPianoChords(): PianoChord[] {
-  return pianoChordData;
+  const customs = getCustomPianoVoicings();
+  if (customs.length === 0) return pianoChordData;
+
+  const merged = pianoChordData.map(c => ({ ...c, voicings: [...c.voicings] }));
+
+  for (const custom of customs) {
+    const existing = merged.find(c => c.key === custom.chordKey && c.suffix === custom.suffix);
+    if (existing) {
+      existing.voicings.push(custom.voicing);
+    } else {
+      merged.push({
+        key: custom.chordKey,
+        suffix: custom.suffix,
+        label: custom.label,
+        voicings: [custom.voicing],
+      });
+    }
+  }
+
+  return merged;
+}
+
+export interface CustomPianoChordData {
+  chordKey: string;
+  suffix: string;
+  label: string;
+  voicing: PianoChordVoicing;
+}
+
+const CUSTOM_PIANO_KEY = "custom-piano-voicings";
+
+export function getCustomPianoVoicings(): CustomPianoChordData[] {
+  try {
+    const data = localStorage.getItem(CUSTOM_PIANO_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+export function saveCustomPianoVoicing(data: CustomPianoChordData) {
+  const existing = getCustomPianoVoicings();
+  existing.push(data);
+  localStorage.setItem(CUSTOM_PIANO_KEY, JSON.stringify(existing));
+}
+
+export function deleteCustomPianoVoicing(index: number) {
+  const existing = getCustomPianoVoicings();
+  existing.splice(index, 1);
+  localStorage.setItem(CUSTOM_PIANO_KEY, JSON.stringify(existing));
 }
 
 export function searchPianoChords(query: string): PianoChord[] {
