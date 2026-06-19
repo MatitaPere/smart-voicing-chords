@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Guitar, Plus, Volume2, Settings2, Star, Timer, Sun, Moon, FileText, Trash2, X, Printer } from "lucide-react";
+import { Search, Guitar, Plus, Volume2, Settings2, Star, Timer, Sun, Moon, FileText, Trash2, X, Printer, Save, FolderOpen, Download, Upload } from "lucide-react";
 import { getAllChordsWithCustom, searchChords, rootNotes, suffixes, suffixLabels, suffixDescriptions } from "@/data/chords";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -126,6 +126,44 @@ const Index = () => {
     : null;
 
   interface SheetEntry { chord: Chord; voicingIdx: number; }
+
+interface SavedSheet {
+  id: string;
+  name: string;
+  createdAt: string;
+  source: "guitar";
+  entries: { label: string; chordKey: string; suffix: string; voicingIndex: number }[];
+}
+
+const SHEETS_KEY = "guitar-saved-sheets";
+
+function getSavedSheets(): SavedSheet[] {
+  try {
+    const data = localStorage.getItem(SHEETS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+function saveSheetToStorage(sheet: SavedSheet) {
+  const existing = getSavedSheets();
+  existing.push(sheet);
+  localStorage.setItem(SHEETS_KEY, JSON.stringify(existing));
+}
+
+function normalizeSheetEntry(entry: { chord: Chord; voicingIdx: number }): { label: string; chordKey: string; suffix: string; voicingIndex: number } {
+  return {
+    label: entry.chord.label,
+    chordKey: entry.chord.key,
+    suffix: entry.chord.suffix,
+    voicingIndex: entry.voicingIdx,
+  };
+}
+
+function deleteSheetFromStorage(id: string) {
+  const existing = getSavedSheets();
+  const filtered = existing.filter(s => s.id !== id);
+  localStorage.setItem(SHEETS_KEY, JSON.stringify(filtered));
+}
   const [sheetEntries, setSheetEntries] = useState<SheetEntry[]>([]);
   const [showSheet, setShowSheet] = useState(false);
 
@@ -672,6 +710,11 @@ const Index = () => {
           entries={sheetEntries}
           onRemove={removeFromSheet}
           onClose={() => setShowSheet(false)}
+          handleOpenLoadDialog={handleOpenLoadDialog}
+          handleExportSheet={handleExportSheet}
+          setShowSaveDialog={setShowSaveDialog}
+          setSaveSheetName={setSaveSheetName}
+          handleImportSheet={handleImportSheet}
         />,
         document.body
       )}
@@ -855,6 +898,8 @@ function InlineVoicingPanel({
       )}
     </div>
   );
+
+
 }
 
 // ── Guitar Sheet overlay ──────────────────────────────────────────────────────────
@@ -863,10 +908,20 @@ function GuitarSheetOverlay({
   entries,
   onRemove,
   onClose,
+  handleOpenLoadDialog,
+  handleExportSheet,
+  setShowSaveDialog,
+  setSaveSheetName,
+  handleImportSheet,
 }: {
   entries: { chord: Chord; voicingIdx: number }[];
   onRemove: (i: number) => void;
   onClose: () => void;
+  handleOpenLoadDialog: () => void;
+  handleExportSheet: () => void;
+  setShowSaveDialog: (v: boolean) => void;
+  setSaveSheetName: (v: string) => void;
+  handleImportSheet: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   function handlePrint() {
     window.print();
@@ -875,19 +930,46 @@ function GuitarSheetOverlay({
   return (
     <div id="piano-sheet-overlay" className="piano-sheet-overlay fixed inset-0 z-[60] bg-background flex flex-col">
       {/* Header — hidden during print */}
-      <div className="piano-sheet-no-print sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center gap-3">
-        <button onClick={onClose} className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground">
+      <div className="piano-sheet-no-print sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center gap-2">
+        <button onClick={onClose} className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground shrink-0">
           <X className="w-5 h-5" />
         </button>
-        <h2 className="text-lg font-semibold text-foreground flex-1">Chord Reference Sheet</h2>
-        <button
-          onClick={handlePrint}
-          disabled={entries.length === 0}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40"
-        >
-          <Printer className="w-4 h-4" />
-          Print / Save PDF
-        </button>
+        <h2 className="text-lg font-semibold text-foreground flex-1 min-w-0 truncate">Chord Reference Sheet</h2>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {entries.length > 0 && (
+            <>
+              <button
+                onClick={() => { setShowSaveDialog(true); setSaveSheetName(""); }}
+                className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                title="Save sheet"
+              >
+                <Save className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleExportSheet}
+                className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                title="Export to file"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            </>
+          )}
+          <button
+            onClick={handleOpenLoadDialog}
+            className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            title="Load saved sheet"
+          >
+            <FolderOpen className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={entries.length === 0}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40"
+          >
+            <Printer className="w-4 h-4" />
+            Print
+          </button>
+        </div>
       </div>
 
       {/* Sheet content */}

@@ -4,6 +4,8 @@ import { Plus, Trash2, ChevronLeft, FileText, LayoutGrid, FolderOpen, BookOpen, 
 import type { Song, SongSection, SongChord, Meter, MeterType } from "@/data/songs";
 import { SECTION_TYPES, PRESET_METERS, createId, saveSong, getSongs, exportSongAsJSON } from "@/data/songs";
 import { getAllChordsWithCustom, rootNotes as ROOT_NOTES } from "@/data/chords";
+import { getAllSavedSheets } from "@/utils/sheetStorage";
+import type { SongChord } from "@/data/songs";
 import { createEmptyLeadSheet, createEmptyRow, createEmptyMeasure, createRowId, createMeasureId, flattenMeasures, getEffectiveChords } from "@/data/leadsheet";
 import type { LeadSheet, LeadSheetChord } from "@/data/leadsheet";
 import { useMetronome } from "@/hooks/useMetronome";
@@ -467,6 +469,16 @@ export default function SongEditor({ song: initialSong, onBack, onSaved }: SongE
                           }));
                         }}
                       />
+                      <LoadFromSavedButton
+                        onLoad={(chords) => {
+                          updateSong(s => ({
+                            ...s,
+                            sections: s.sections.map(sec =>
+                              sec.id === section.id ? { ...sec, chords: [...sec.chords, ...chords] } : sec
+                            ),
+                          }));
+                        }}
+                      />
                     </div>
                   </div>
                   </div>
@@ -660,6 +672,54 @@ function LoadProgressionButton({ currentSongId, currentSectionId, onLoad }: { cu
               ))}
             </div>
           </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function LoadFromSavedButton({ onLoad }: { onLoad: (chords: SongChord[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const allSheets = getAllSavedSheets();
+
+  if (allSheets.length === 0) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary text-xs font-medium transition-colors">
+          <FileText className="w-3.5 h-3.5" />
+          Saved Progressions
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 max-h-[300px] overflow-y-auto p-2" side="bottom" align="start">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Saved Progressions</p>
+        {allSheets.length === 0 ? (
+          <p className="text-xs text-muted-foreground px-2">No saved progressions yet.</p>
+        ) : (
+          <div className="space-y-1">
+            {[...allSheets].reverse().map(sheet => (
+              <button
+                key={sheet.id}
+                onClick={() => {
+                  const chords: SongChord[] = sheet.entries.map(e => ({
+                    chordKey: e.chordKey,
+                    suffix: e.suffix,
+                    label: e.label,
+                    voicingIndex: e.voicingIndex,
+                  }));
+                  if (chords.length > 0) onLoad(chords);
+                  setOpen(false);
+                }}
+                className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-secondary/50 transition-colors"
+              >
+                <p className="text-xs font-medium text-foreground">{sheet.name}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {sheet.source} · {sheet.entries.length} chord{sheet.entries.length !== 1 ? "s" : ""} · {new Date(sheet.createdAt).toLocaleDateString()}
+                </p>
+              </button>
+            ))}
+          </div>
         )}
       </PopoverContent>
     </Popover>
