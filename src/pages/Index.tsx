@@ -164,8 +164,28 @@ function deleteSheetFromStorage(id: string) {
   const filtered = existing.filter(s => s.id !== id);
   localStorage.setItem(SHEETS_KEY, JSON.stringify(filtered));
 }
-  const [sheetEntries, setSheetEntries] = useState<SheetEntry[]>([]);
+  const [sheetEntries, setSheetEntries] = useState<SheetEntry[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("guitar-sheet-entries");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [showSheet, setShowSheet] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [saveSheetName, setSaveSheetName] = useState("");
+  const [savedSheets, setSavedSheets] = useState<SavedSheet[]>([]);
+
+  // Persist sheet entries to sessionStorage
+  React.useEffect(() => {
+    try {
+      if (sheetEntries.length > 0) {
+        sessionStorage.setItem("guitar-sheet-entries", JSON.stringify(sheetEntries));
+      } else {
+        sessionStorage.removeItem("guitar-sheet-entries");
+      }
+    } catch {}
+  }, [sheetEntries]);
 
   const addToSheet = useCallback((chord: Chord, voicingIdx: number) => {
     setSheetEntries(prev => [...prev, { chord, voicingIdx }]);
@@ -174,6 +194,81 @@ function deleteSheetFromStorage(id: string) {
   const removeFromSheet = useCallback((i: number) => {
     setSheetEntries(prev => prev.filter((_, idx) => idx !== i));
   }, []);
+
+  function handleOpenLoadDialog() {
+    setSavedSheets(getSavedSheets());
+    setShowLoadDialog(true);
+  }
+
+  function handleSaveSheet() {
+    if (!saveSheetName.trim() || sheetEntries.length === 0) return;
+    const now = new Date().toISOString();
+    saveSheetToStorage({
+      id: now,
+      name: saveSheetName.trim(),
+      createdAt: now,
+      source: "guitar",
+      entries: sheetEntries.map(normalizeSheetEntry),
+    });
+    setSaveSheetName("");
+    setShowSaveDialog(false);
+  }
+
+  function handleLoadSheet(sheet: SavedSheet) {
+    setSheetEntries(
+      sheet.entries.map(e => {
+        const chord = allChords.find(c => c.key === e.chordKey && c.suffix === e.suffix);
+        return chord
+          ? { chord, voicingIdx: e.voicingIndex }
+          : { chord: { key: e.chordKey, suffix: e.suffix, label: e.label, voicings: [] }, voicingIdx: 0 };
+      })
+    );
+    setShowLoadDialog(false);
+  }
+
+  function handleDeleteSheet(id: string) {
+    deleteSheetFromStorage(id);
+    setSavedSheets(prev => prev.filter(s => s.id !== id));
+  }
+
+  function handleExportSheet() {
+    if (sheetEntries.length === 0) return;
+    const exportData = {
+      source: "guitar" as const,
+      entries: sheetEntries.map(normalizeSheetEntry),
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `guitar-sheet-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImportSheet(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = JSON.parse(evt.target?.result as string);
+        if (data.entries && Array.isArray(data.entries)) {
+          setSheetEntries(
+            data.entries.map((entry: any) => {
+              const chord = allChords.find((c: Chord) => c.key === entry.chordKey && c.suffix === entry.suffix);
+              return chord
+                ? { chord, voicingIdx: entry.voicingIndex ?? 0 }
+                : { chord: { key: entry.chordKey, suffix: entry.suffix, label: entry.label, voicings: [] }, voicingIdx: 0 };
+            })
+          );
+        }
+      } catch {}
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
 
   return (
     <div className="min-h-screen bg-background lg:flex lg:h-screen lg:overflow-hidden">
@@ -339,13 +434,31 @@ function deleteSheetFromStorage(id: string) {
               </Popover>
 
               {sheetEntries.length > 0 && (
-                <button
-                  onClick={() => setShowSheet(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  Sheet ({sheetEntries.length})
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setShowSheet(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Sheet ({sheetEntries.length})
+                  </button>
+                  <div className="flex">
+                    <button
+                      onClick={() => { setShowSaveDialog(true); setSaveSheetName(""); }}
+                      className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      title="Save this progression"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={handleOpenLoadDialog}
+                      className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      title="Load saved progression"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               )}
               <button
                 onClick={() => setShowTimer(p => !p)}
@@ -703,6 +816,74 @@ function deleteSheetFromStorage(id: string) {
           />
         )}
       </AnimatePresence>
+
+      {/* Save sheet dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 z-[70] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowSaveDialog(false)}>
+          <div className="bg-card border border-border/50 rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-foreground mb-4">Save Sheet</h3>
+            <input
+              type="text"
+              value={saveSheetName}
+              onChange={e => setSaveSheetName(e.target.value)}
+              placeholder="Sheet name (e.g. Jazz Voicings)"
+              className="w-full px-3 py-2 bg-surface rounded-xl text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-primary/40 mb-4"
+              autoFocus
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleSaveSheet(); } }}
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setShowSaveDialog(false)} className="flex-1 py-2 rounded-xl bg-secondary text-foreground text-sm font-semibold hover:bg-secondary/80 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSheet}
+                disabled={!saveSheetName.trim() || sheetEntries.length === 0}
+                className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load sheet dialog */}
+      {showLoadDialog && (
+        <div className="fixed inset-0 z-[70] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowLoadDialog(false)}>
+          <div className="bg-card border border-border/50 rounded-2xl p-6 w-full max-w-sm max-h-[70vh] shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Load Sheet</h3>
+              <label className="cursor-pointer p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Import from file">
+                <Upload className="w-4 h-4" />
+                <input type="file" accept=".json" onChange={handleImportSheet} className="hidden" />
+              </label>
+            </div>
+            {savedSheets.length === 0 ? (
+              <div className="text-center py-8 text-sm text-muted-foreground">
+                <p>No saved sheets yet.</p>
+                <p className="text-xs mt-1">Use the Save button to save your current sheet.</p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {[...savedSheets].reverse().map(sheet => (
+                  <div key={sheet.id} className="flex items-center gap-2 p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors">
+                    <button onClick={() => handleLoadSheet(sheet)} className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{sheet.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{new Date(sheet.createdAt).toLocaleDateString()} · {sheet.entries.length} chord{sheet.entries.length !== 1 ? "s" : ""}</p>
+                    </button>
+                    <button onClick={() => handleDeleteSheet(sheet.id)} className="p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors shrink-0">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setShowLoadDialog(false)} className="w-full mt-4 py-2 rounded-xl bg-secondary text-foreground text-sm font-semibold hover:bg-secondary/80 transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Sheet overlay */}
       {showSheet && createPortal(
