@@ -125,14 +125,16 @@ const Index = () => {
     ? allChords.find(c => `${c.key}-${c.suffix}` === expandedChordId) ?? null
     : null;
 
-  interface SheetEntry { chord: Chord; voicingIdx: number; }
+  interface SheetChordEntry { type: "chord"; chord: Chord; voicingIdx: number; size: "sm" | "md" | "lg"; }
+  interface SheetTextEntry { type: "text"; id: string; content: string; }
+  type SheetEntry = SheetChordEntry | SheetTextEntry;
 
 interface SavedSheet {
   id: string;
   name: string;
   createdAt: string;
   source: "guitar";
-  entries: { label: string; chordKey: string; suffix: string; voicingIndex: number }[];
+  entries: { type?: string; label?: string; chordKey?: string; suffix?: string; voicingIndex?: number; size?: string; id?: string; content?: string }[];
 }
 
 const SHEETS_KEY = "guitar-saved-sheets";
@@ -150,12 +152,17 @@ function saveSheetToStorage(sheet: SavedSheet) {
   localStorage.setItem(SHEETS_KEY, JSON.stringify(existing));
 }
 
-function normalizeSheetEntry(entry: { chord: Chord; voicingIdx: number }): { label: string; chordKey: string; suffix: string; voicingIndex: number } {
+function normalizeSheetEntry(entry: SheetEntry): { type: string; label?: string; chordKey?: string; suffix?: string; voicingIndex?: number; size?: string; id?: string; content?: string } {
+  if (entry.type === "text") {
+    return { type: "text", id: entry.id, content: entry.content };
+  }
   return {
+    type: "chord",
     label: entry.chord.label,
     chordKey: entry.chord.key,
     suffix: entry.chord.suffix,
     voicingIndex: entry.voicingIdx,
+    size: entry.size,
   };
 }
 
@@ -175,6 +182,7 @@ function deleteSheetFromStorage(id: string) {
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [saveSheetName, setSaveSheetName] = useState("");
   const [savedSheets, setSavedSheets] = useState<SavedSheet[]>([]);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   // Persist sheet entries to sessionStorage
   React.useEffect(() => {
@@ -188,7 +196,7 @@ function deleteSheetFromStorage(id: string) {
   }, [sheetEntries]);
 
   const addToSheet = useCallback((chord: Chord, voicingIdx: number) => {
-    setSheetEntries(prev => [...prev, { chord, voicingIdx }]);
+    setSheetEntries(prev => [...prev, { type: "chord" as const, chord, voicingIdx, size: "md" as const }]);
   }, []);
 
   const removeFromSheet = useCallback((i: number) => {
@@ -198,6 +206,14 @@ function deleteSheetFromStorage(id: string) {
   function handleOpenLoadDialog() {
     setSavedSheets(getSavedSheets());
     setShowLoadDialog(true);
+  }
+
+  function handleReorderEntries(newOrder: SheetEntry[]) {
+    setSheetEntries(newOrder);
+  }
+
+  function handleUpdateEntry(index: number, updates: Partial<SheetEntry>) {
+    setSheetEntries(prev => prev.map((e, i) => i === index ? { ...e, ...updates } : e));
   }
 
   function handleSaveSheet() {
@@ -217,12 +233,16 @@ function deleteSheetFromStorage(id: string) {
   function handleLoadSheet(sheet: SavedSheet) {
     setSheetEntries(
       sheet.entries.map(e => {
+        if (e.type === "text") {
+          return { type: "text" as const, id: e.id || Date.now().toString() + Math.random(), content: e.content || "" };
+        }
         const chord = allChords.find(c => c.key === e.chordKey && c.suffix === e.suffix);
         return chord
-          ? { chord, voicingIdx: e.voicingIndex }
-          : { chord: { key: e.chordKey, suffix: e.suffix, label: e.label, voicings: [] }, voicingIdx: 0 };
+          ? { type: "chord" as const, chord, voicingIdx: e.voicingIndex ?? 0, size: (e.size as "sm"|"md"|"lg") || "md" }
+          : { type: "chord" as const, chord: { key: e.chordKey || "", suffix: e.suffix || "", label: e.label || "", voicings: [] }, voicingIdx: 0, size: "md" as const };
       })
     );
+    setRefreshCounter(c => c + 1);
     setShowLoadDialog(false);
   }
 
@@ -257,12 +277,16 @@ function deleteSheetFromStorage(id: string) {
         if (data.entries && Array.isArray(data.entries)) {
           setSheetEntries(
             data.entries.map((entry: any) => {
+              if (entry.type === "text") {
+                return { type: "text" as const, id: entry.id || Date.now().toString() + Math.random(), content: entry.content || "" };
+              }
               const chord = allChords.find((c: Chord) => c.key === entry.chordKey && c.suffix === entry.suffix);
               return chord
-                ? { chord, voicingIdx: entry.voicingIndex ?? 0 }
-                : { chord: { key: entry.chordKey, suffix: entry.suffix, label: entry.label, voicings: [] }, voicingIdx: 0 };
+                ? { type: "chord" as const, chord, voicingIdx: entry.voicingIndex ?? 0, size: (entry.size as "sm"|"md"|"lg") || "md" }
+                : { type: "chord" as const, chord: { key: entry.chordKey, suffix: entry.suffix, label: entry.label, voicings: [] }, voicingIdx: 0, size: "md" as const };
             })
           );
+          setRefreshCounter(c => c + 1);
         }
       } catch {}
     };
@@ -888,8 +912,11 @@ function deleteSheetFromStorage(id: string) {
       {/* Sheet overlay */}
       {showSheet && createPortal(
         <GuitarSheetOverlay
+          key={"sheet-overlay-" + refreshCounter}
           entries={sheetEntries}
           onRemove={removeFromSheet}
+          onReorder={handleReorderEntries}
+          onUpdateEntry={handleUpdateEntry}
           onClose={() => setShowSheet(false)}
           handleOpenLoadDialog={handleOpenLoadDialog}
           handleExportSheet={handleExportSheet}
@@ -1088,6 +1115,8 @@ function InlineVoicingPanel({
 function GuitarSheetOverlay({
   entries,
   onRemove,
+  onReorder,
+  onUpdateEntry,
   onClose,
   handleOpenLoadDialog,
   handleExportSheet,
@@ -1095,8 +1124,10 @@ function GuitarSheetOverlay({
   setSaveSheetName,
   handleImportSheet,
 }: {
-  entries: { chord: Chord; voicingIdx: number }[];
+  entries: SheetEntry[];
   onRemove: (i: number) => void;
+  onReorder: (newOrder: SheetEntry[]) => void;
+  onUpdateEntry: (index: number, updates: Partial<SheetEntry>) => void;
   onClose: () => void;
   handleOpenLoadDialog: () => void;
   handleExportSheet: () => void;
@@ -1104,8 +1135,88 @@ function GuitarSheetOverlay({
   setSaveSheetName: (v: string) => void;
   handleImportSheet: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const [localEntries, setLocalEntries] = useState<SheetEntry[]>(entries);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+
+  // Initialize from props on mount only
+  const initialSyncDone = React.useRef(false);
+  React.useEffect(() => {
+    if (!initialSyncDone.current) {
+      setLocalEntries(entries);
+      initialSyncDone.current = true;
+    }
+  }, []);
+
   function handlePrint() {
     window.print();
+  }
+
+  function handleDragStart(e: React.DragEvent, index: number) {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  function handleDragEnd() {
+    setDragIndex(null);
+  }
+
+  function handleDrop(e: React.DragEvent, toIdx: number) {
+    e.preventDefault();
+    const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+    if (isNaN(fromIdx) || fromIdx === toIdx) return;
+    const newOrder = [...localEntries];
+    const [moved] = newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, moved);
+    setLocalEntries(newOrder);
+    onReorder(newOrder);
+    setDragIndex(null);
+  }
+
+  function handleAddText() {
+    const newEntry: SheetTextEntry = { type: "text" as const, id: Date.now().toString() + Math.random(), content: "Type here..." };
+    const newIdx = localEntries.length;
+    setLocalEntries(prev => [...prev, newEntry]);
+    // Also add to parent's state via reorder handler
+    onReorder([...localEntries, newEntry]);
+    setEditingTextId(newEntry.id);
+    setEditingContent("Type here...");
+  }
+
+  function handleTextChange(id: string, content: string) {
+    setLocalEntries(prev => prev.map(e => e.type === "text" && e.id === id ? { ...e, content } : e));
+  }
+
+  function handleTextBlur() {
+    setEditingTextId(null);
+    setEditingContent("");
+  }
+
+  function handleChangeSize(i: number, newSize: "sm" | "md" | "lg") {
+    setLocalEntries(prev => prev.map((e, idx) => 
+      idx === i && e.type === "chord" ? { ...e, size: newSize } : e
+    ));
+    onUpdateEntry(i, { size: newSize } as Partial<SheetEntry>);
+  }
+
+  function getSizeClass(size: "sm" | "md" | "lg"): string {
+    switch(size) {
+      case "sm": return "max-w-[100px]";
+      case "lg": return "max-w-[220px]";
+      default: return "max-w-[160px]"; // md
+    }
+  }
+
+  function getDiagramSize(size: "sm" | "md" | "lg"): "sm" | "lg" {
+    // ChordDiagram only accepts "sm" or "lg"
+    return size === "lg" ? "lg" : "sm";
   }
 
   return (
@@ -1155,7 +1266,7 @@ function GuitarSheetOverlay({
 
       {/* Sheet content */}
       <div className="flex-1 overflow-y-auto p-6 piano-sheet-content">
-        {entries.length === 0 ? (
+        {localEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2">
             <Guitar className="w-10 h-10 opacity-30" />
             <p>No chords added yet.</p>
@@ -1163,33 +1274,124 @@ function GuitarSheetOverlay({
           </div>
         ) : (
           <>
+            <div className="flex items-center justify-between mb-4 piano-sheet-no-print">
+              <h1 className="text-xl font-bold text-foreground">Guitar Chord Reference Sheet</h1>
+              <button
+                onClick={handleAddText}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-secondary text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Add Text
+              </button>
+            </div>
             <h1 className="piano-sheet-print-title hidden text-2xl font-bold text-black mb-6">Guitar Chord Reference Sheet</h1>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 piano-sheet-grid">
-              {entries.map((entry, i) => (
-                <div key={i} className="piano-sheet-card relative flex flex-col items-center gap-2 p-3 bg-card rounded-xl border border-border/40">
-                  <button
-                    onClick={() => onRemove(i)}
-                    className="piano-sheet-no-print absolute top-2 right-2 w-5 h-5 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors"
+              {localEntries.map((entry, i) => {
+                if (entry.type === "text") {
+                  const isEditing = editingTextId === entry.id;
+                  return (
+                    <div
+                      key={entry.id}
+                      className="piano-sheet-card relative flex flex-col items-center gap-2 p-3 bg-card rounded-xl border border-border/40 min-h-[120px]"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={(e) => handleDrop(e, i)}
+                      onDragEnd={handleDragEnd}
+                      style={{ opacity: dragIndex === i ? 0.3 : 1, cursor: "grab" }}
+                    >
+                      <button
+                        onClick={() => onRemove(i)}
+                        className="piano-sheet-no-print absolute top-2 right-2 w-5 h-5 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                      <div className="piano-sheet-no-print absolute top-2 left-2 w-5 h-5 flex items-center justify-center text-muted-foreground cursor-grab">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
+                        </svg>
+                      </div>
+                      {isEditing ? (
+                        <textarea
+                          autoFocus
+                          value={editingContent}
+                          onChange={(e) => { setEditingContent(e.target.value); handleTextChange(entry.id, e.target.value); }}
+                          onBlur={handleTextBlur}
+                          className="w-full h-full min-h-[100px] bg-transparent text-foreground text-sm font-medium outline-none resize-none p-2 rounded-lg border border-primary/40"
+                          placeholder="Type your notes here..."
+                        />
+                      ) : (
+                        <div
+                          className="w-full h-full min-h-[100px] p-2 cursor-text whitespace-pre-wrap text-foreground text-sm"
+                          onClick={() => { setEditingTextId(entry.id); setEditingContent(entry.content); }}
+                        >
+                          {entry.content}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Chord entry
+                const chord = entry.chord;
+                const size = entry.size || "md";
+                return (
+                  <div
+                    key={i}
+                    className="piano-sheet-card relative flex flex-col items-center gap-2 p-3 bg-card rounded-xl border border-border/40"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, i)}
+                    onDragOver={(e) => handleDragOver(e, i)}
+                    onDrop={(e) => handleDrop(e, i)}
+                    onDragEnd={handleDragEnd}
+                    style={{ opacity: dragIndex === i ? 0.3 : 1, cursor: "grab" }}
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                  <p className="text-base font-bold text-foreground piano-sheet-label">{entry.chord.label}</p>
-                  <p className="text-[10px] text-muted-foreground piano-sheet-sublabel">{entry.chord.voicings[entry.voicingIdx].name}</p>
-                  <div className="w-full max-w-[160px]">
-                    <ChordDiagram voicing={entry.chord.voicings[entry.voicingIdx]} size="lg" />
+                    <button
+                      onClick={() => onRemove(i)}
+                      className="piano-sheet-no-print absolute top-2 right-2 w-5 h-5 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                    <div className="piano-sheet-no-print absolute top-2 left-2 w-5 h-5 flex items-center justify-center text-muted-foreground cursor-grab">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
+                      </svg>
+                    </div>
+                    {/* Size controls */}
+                    <div className="piano-sheet-no-print absolute bottom-2 left-2 flex gap-0.5">
+                      {(["sm", "md", "lg"] as const).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => handleChangeSize(i, s)}
+                          className={`w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center transition-colors ${
+                            size === s
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-secondary text-muted-foreground hover:text-foreground"
+                          }`}
+                          title={s === "sm" ? "Small" : s === "md" ? "Medium" : "Large"}
+                        >
+                          {s === "sm" ? "S" : s === "md" ? "M" : "L"}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-base font-bold text-foreground piano-sheet-label">{chord.label}</p>
+                    <p className="text-[10px] text-muted-foreground piano-sheet-sublabel">{chord.voicings[entry.voicingIdx]?.name || ""}</p>
+                    <div className={`w-full ${getSizeClass(size)}`}>
+                      <ChordDiagram voicing={chord.voicings[entry.voicingIdx]} size={getDiagramSize(size)} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      {chord.voicings[entry.voicingIdx]?.positions.map(p => p === -1 ? "x" : p.toString()).join(" · ") || ""}
+                    </p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground font-mono">
-                    {entry.chord.voicings[entry.voicingIdx].positions.map(p => p === -1 ? "x" : p.toString()).join(" · ")}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
       </div>
     </div>
   );
-}
-
-export default Index;
+}export default Index;
