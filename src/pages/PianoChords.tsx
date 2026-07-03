@@ -809,4 +809,4 @@ function PianoSheetOverlay({
     </div>
   );
 }
-}export default PianoChords;
+export default PianoChords;

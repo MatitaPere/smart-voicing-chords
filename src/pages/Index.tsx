@@ -1252,4 +1252,4 @@ function GuitarSheetOverlay({
     </div>
   );
 }
-}export default Index;
+export default Index;
