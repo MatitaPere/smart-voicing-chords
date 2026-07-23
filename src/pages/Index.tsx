@@ -1264,14 +1264,14 @@ function GuitarSheetOverlay({
             </div>
             <h1 className="piano-sheet-print-title hidden text-2xl font-bold text-black mb-6">Guitar Chord Reference Sheet</h1>
 
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 gap-1.5">
               {localEntries.map((entry, i) => {
                 if (entry.type === "section") {
                   const isEditing = editingSectionId === entry.id;
                   return (
                     <div
                       key={entry.id}
-                      className="flex items-center gap-2 piano-sheet-no-print"
+                      className="col-span-full flex items-center gap-2"
                       draggable
                       onDragStart={(e) => handleDragStart(e, i)}
                       onDragOver={(e) => handleDragOver(e, i)}
