@@ -229,8 +229,7 @@ const PianoChords = () => {
               Piano Chords
             </h1>
             <div className="ml-auto flex items-center gap-2">
-              {sheetEntries.length > 0 && (
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1">
                   <button
                     onClick={() => setShowSheet(true)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
@@ -238,7 +237,7 @@ const PianoChords = () => {
                     <FileText className="w-3.5 h-3.5" />
                     Sheet ({sheetEntries.length})
                   </button>
-                  <div className="flex">
+                  {sheetEntries.length > 0 && (<div className="flex">
                     <button
                       onClick={() => { setShowSaveDialog(true); setSaveSheetName(""); }}
                       className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
@@ -253,9 +252,8 @@ const PianoChords = () => {
                     >
                       <FolderOpen className="w-3.5 h-3.5" />
                     </button>
-                  </div>
+                  </div>)}
                 </div>
-              )}
               <button
                 onClick={() => { setShowFavoritesOnly(p => !p); setExpandedChordId(null); }}
                 className={`p-2 rounded-xl transition-colors ${

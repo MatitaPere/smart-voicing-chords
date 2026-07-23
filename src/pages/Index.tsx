@@ -454,33 +454,31 @@ function deleteSheetFromStorage(id: string) {
                 </PopoverContent>
               </Popover>
 
-              {sheetEntries.length > 0 && (
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowSheet(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Sheet ({sheetEntries.length})
+                </button>
+                {sheetEntries.length > 0 && (<div className="flex">
                   <button
-                    onClick={() => setShowSheet(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                    onClick={() => { setShowSaveDialog(true); setSaveSheetName(""); }}
+                    className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    title="Save this progression"
                   >
-                    <FileText className="w-3.5 h-3.5" />
-                    Sheet ({sheetEntries.length})
+                    <Save className="w-3.5 h-3.5" />
                   </button>
-                  <div className="flex">
-                    <button
-                      onClick={() => { setShowSaveDialog(true); setSaveSheetName(""); }}
-                      className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                      title="Save this progression"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={handleOpenLoadDialog}
-                      className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                      title="Load saved progression"
-                    >
-                      <FolderOpen className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              )}
+                  <button
+                    onClick={handleOpenLoadDialog}
+                    className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    title="Load saved progression"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                  </button>
+                </div>)}
+              </div>
               <button
                 onClick={() => setShowTimer(p => !p)}
                 className={`p-2 rounded-xl transition-colors ${
