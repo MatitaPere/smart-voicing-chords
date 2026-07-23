@@ -764,7 +764,7 @@ function PianoSheetOverlay({
             type="text"
             value={sheetTitle}
             onChange={(e) => setSheetTitle(e.target.value)}
-            className="text-lg font-semibold text-foreground bg-transparent border-none outline-none w-full min-w-0 truncate"
+            className="text-lg font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border/50 focus:border-primary focus:outline-none w-full min-w-0 truncate transition-colors cursor-text"
           />
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
