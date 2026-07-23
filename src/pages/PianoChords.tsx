@@ -886,31 +886,31 @@ function PianoSheetOverlay({
                   >
                     <button
                       onClick={(e) => { e.stopPropagation(); if (i > 0) { const newOrder = [...localEntries]; const [moved] = newOrder.splice(i, 1); newOrder.splice(i - 1, 0, moved); setLocalEntries(newOrder); onReorder(newOrder); } }}
-                      className="piano-sheet-no-print absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
+                      className="piano-sheet-no-print absolute -top-0.5 left-0.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
                       title="Move up"
                     >
                       <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-7 7m7-7l7 7"/></svg>
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); if (i < localEntries.length - 1) { const newOrder = [...localEntries]; const [moved] = newOrder.splice(i, 1); newOrder.splice(i + 1, 0, moved); setLocalEntries(newOrder); onReorder(newOrder); } }}
-                      className="piano-sheet-no-print absolute -bottom-1.5 -left-1.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
+                      className="piano-sheet-no-print absolute -bottom-0.5 left-0.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
                       title="Move down"
                     >
                       <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m0 0l7-7m-7 7l-7-7"/></svg>
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); const copy = { ...entry, chord: entry.chord }; const newOrder = [...localEntries]; newOrder.splice(i + 1, 0, copy); setLocalEntries(newOrder); onReorder(newOrder); }}
-                      className="piano-sheet-no-print absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
-                      title="Duplicate chord"
-                    >
-                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    </button>
-                    <button
-                      onClick={() => { onRemove(i); }}
-                      className="piano-sheet-no-print absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10"
+                      onClick={(e) => { e.stopPropagation(); onRemove(i); }}
+                      className="piano-sheet-no-print absolute -top-0.5 right-0.5 w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10"
                       title="Remove"
                     >
                       <Trash2 className="w-2.5 h-2.5" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); const copy = { ...entry, chord: entry.chord }; const newOrder = [...localEntries]; newOrder.splice(i + 1, 0, copy); setLocalEntries(newOrder); onReorder(newOrder); }}
+                      className="piano-sheet-no-print absolute -bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
+                      title="Duplicate chord"
+                    >
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     </button>
                     <PianoDiagram voicing={chord.voicings[entry.voicingIdx]} size="sm" noteLabels={noteNames} />
                     <p className="text-[10px] font-semibold text-foreground text-center leading-tight mt-0.5">{chord.label}</p>
