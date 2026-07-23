@@ -901,8 +901,8 @@ function PianoSheetOverlay({
                       <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m0 0l7-7m-7 7l-7-7"/></svg>
                     </button>
                     <button
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={(e) => { e.stopPropagation(); onRemove(i); }}
+                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(i); }}
                       className="piano-sheet-no-print absolute -top-0.5 right-0.5 w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10"
                       title="Remove"
                     >
