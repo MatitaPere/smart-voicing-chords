@@ -1327,9 +1327,25 @@ function GuitarSheetOverlay({
                     onDragEnd={handleDragEnd}
                     style={{ opacity: dragIndex === i ? 0.3 : 1, cursor: "grab" }}
                   >
+                    <div className="piano-sheet-no-print absolute -top-1.5 -left-1.5 flex flex-col gap-0.5 z-10">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (i > 0) { const newOrder = [...localEntries]; const [moved] = newOrder.splice(i, 1); newOrder.splice(i - 1, 0, moved); setLocalEntries(newOrder); onReorder(newOrder); } }}
+                        className="w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                        title="Move up"
+                      >
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-7 7m7-7l7 7"/></svg>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (i < localEntries.length - 1) { const newOrder = [...localEntries]; const [moved] = newOrder.splice(i, 1); newOrder.splice(i + 1, 0, moved); setLocalEntries(newOrder); onReorder(newOrder); } }}
+                        className="w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                        title="Move down"
+                      >
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m0 0l7-7m-7 7l-7-7"/></svg>
+                      </button>
+                    </div>
                     <button
                       onClick={() => onRemove(i)}
-                      className="piano-sheet-no-print absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10"
+                      className="piano-sheet-no-print absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10"
                     >
                       <Trash2 className="w-2.5 h-2.5" />
                     </button>
