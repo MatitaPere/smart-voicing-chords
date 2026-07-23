@@ -177,6 +177,8 @@ function deleteSheetFromStorage(id: string) {
     } catch { return []; }
   });
   const [showSheet, setShowSheet] = useState(false);
+  const [sheetTitle, setSheetTitle] = useState("Guitar Chord Reference Sheet");
+  const [editingTitle, setEditingTitle] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [saveSheetName, setSaveSheetName] = useState("");
@@ -909,6 +911,8 @@ function deleteSheetFromStorage(id: string) {
         <GuitarSheetOverlay
           key={"sheet-overlay-" + refreshCounter}
           entries={sheetEntries}
+          sheetTitle={sheetTitle}
+          setSheetTitle={setSheetTitle}
           onRemove={removeFromSheet}
           onReorder={handleReorderEntries}
           onClose={() => setShowSheet(false)}
@@ -1108,6 +1112,8 @@ function InlineVoicingPanel({
 
 function GuitarSheetOverlay({
   entries,
+  sheetTitle,
+  setSheetTitle,
   onRemove,
   onReorder,
   onClose,
@@ -1118,6 +1124,8 @@ function GuitarSheetOverlay({
   handleImportSheet,
 }: {
   entries: SheetEntry[];
+  sheetTitle: string;
+  setSheetTitle: (v: string) => void;
   onRemove: (i: number) => void;
   onReorder: (newOrder: SheetEntry[]) => void;
   onClose: () => void;
@@ -1199,7 +1207,14 @@ function GuitarSheetOverlay({
         <button onClick={onClose} className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-foreground shrink-0">
           <X className="w-5 h-5" />
         </button>
-        <h2 className="text-lg font-semibold text-foreground flex-1 min-w-0 truncate">Chord Reference Sheet</h2>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <input
+            type="text"
+            value={sheetTitle}
+            onChange={(e) => setSheetTitle(e.target.value)}
+            className="text-lg font-semibold text-foreground bg-transparent border-none outline-none w-full min-w-0 truncate"
+          />
+        </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {entries.length > 0 && (
             <>
@@ -1248,7 +1263,7 @@ function GuitarSheetOverlay({
         ) : (
           <>
             <div className="flex items-center justify-between mb-3 piano-sheet-no-print">
-              <h1 className="text-lg font-bold text-foreground">Guitar Chord Reference Sheet</h1>
+              <h1 className="text-lg font-bold text-foreground">{sheetTitle}</h1>
               <button
                 onClick={handleAddSection}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-secondary text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
@@ -1259,7 +1274,7 @@ function GuitarSheetOverlay({
                 Add Section
               </button>
             </div>
-            <h1 className="piano-sheet-print-title hidden text-2xl font-bold text-black mb-6">Guitar Chord Reference Sheet</h1>
+            <h1 className="piano-sheet-print-title hidden text-2xl font-bold text-black mb-6">{sheetTitle}</h1>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 gap-1.5">
               {localEntries.map((entry, i) => {
