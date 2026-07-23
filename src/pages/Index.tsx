@@ -1320,15 +1320,9 @@ function GuitarSheetOverlay({
                   <div
                     key={i}
                     className="relative flex flex-col items-center bg-card rounded-lg border border-border/30 p-1.5"
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, i)}
-                    onDragOver={(e) => handleDragOver(e, i)}
-                    onDrop={(e) => handleDrop(e, i)}
-                    onDragEnd={handleDragEnd}
-                    style={{ opacity: dragIndex === i ? 0.3 : 1, cursor: "grab" }}
+                    style={{ opacity: dragIndex === i ? 0.3 : 1 }}
                   >
                     <button
-                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); if (i > 0) { const newOrder = [...localEntries]; const [moved] = newOrder.splice(i, 1); newOrder.splice(i - 1, 0, moved); setLocalEntries(newOrder); onReorder(newOrder); } }}
                       className="piano-sheet-no-print absolute -top-0.5 left-0.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
                       title="Move up"
@@ -1336,7 +1330,6 @@ function GuitarSheetOverlay({
                       <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-7 7m7-7l7 7"/></svg>
                     </button>
                     <button
-                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); if (i < localEntries.length - 1) { const newOrder = [...localEntries]; const [moved] = newOrder.splice(i, 1); newOrder.splice(i + 1, 0, moved); setLocalEntries(newOrder); onReorder(newOrder); } }}
                       className="piano-sheet-no-print absolute -bottom-0.5 left-0.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
                       title="Move down"
@@ -1344,7 +1337,6 @@ function GuitarSheetOverlay({
                       <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m0 0l7-7m-7 7l-7-7"/></svg>
                     </button>
                     <button
-                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); const copy = { ...entry, chord: entry.chord }; const newOrder = [...localEntries]; newOrder.splice(i + 1, 0, copy); setLocalEntries(newOrder); onReorder(newOrder); }}
                       className="piano-sheet-no-print absolute -bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors z-10"
                       title="Duplicate chord"
@@ -1352,18 +1344,27 @@ function GuitarSheetOverlay({
                       <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     </button>
                     <button
-                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); onRemove(i); }}
                       className="piano-sheet-no-print absolute -top-0.5 right-0.5 w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10"
                       title="Remove"
                     >
                       <Trash2 className="w-2.5 h-2.5" />
                     </button>
-                    <ChordDiagram voicing={chord.voicings[entry.voicingIdx]} size="sm" />
-                    <p className="text-[10px] font-semibold text-foreground text-center leading-tight mt-0.5">{chord.label}</p>
-                    <p className="text-[8px] text-muted-foreground font-mono text-center leading-tight">
-                      {chord.voicings[entry.voicingIdx]?.positions.map(p => p === -1 ? "x" : p.toString()).join("·") || ""}
-                    </p>
+                    <div
+                      className="flex flex-col items-center w-full"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={(e) => handleDrop(e, i)}
+                      onDragEnd={handleDragEnd}
+                      style={{ cursor: "grab" }}
+                    >
+                      <ChordDiagram voicing={chord.voicings[entry.voicingIdx]} size="sm" />
+                      <p className="text-[10px] font-semibold text-foreground text-center leading-tight mt-0.5">{chord.label}</p>
+                      <p className="text-[8px] text-muted-foreground font-mono text-center leading-tight">
+                        {chord.voicings[entry.voicingIdx]?.positions.map(p => p === -1 ? "x" : p.toString()).join("·") || ""}
+                      </p>
+                    </div>
                   </div>
                 );
               })}
