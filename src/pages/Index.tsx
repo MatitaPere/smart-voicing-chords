@@ -1343,12 +1343,22 @@ function GuitarSheetOverlay({
                         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m0 0l7-7m-7 7l-7-7"/></svg>
                       </button>
                     </div>
-                    <button
-                      onClick={() => onRemove(i)}
-                      className="piano-sheet-no-print absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10"
-                    >
-                      <Trash2 className="w-2.5 h-2.5" />
-                    </button>
+                    <div className="piano-sheet-no-print absolute -top-1.5 -right-1.5 flex gap-0.5 z-10">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); const copy = { ...entry, chord: entry.chord }; const newOrder = [...localEntries]; newOrder.splice(i + 1, 0, copy); setLocalEntries(newOrder); onReorder(newOrder); }}
+                        className="w-4 h-4 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                        title="Duplicate chord"
+                      >
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                      </button>
+                      <button
+                        onClick={() => onRemove(i)}
+                        className="w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
                     <ChordDiagram voicing={chord.voicings[entry.voicingIdx]} size="sm" />
                     <p className="text-[10px] font-semibold text-foreground text-center leading-tight mt-0.5">{chord.label}</p>
                     <p className="text-[8px] text-muted-foreground font-mono text-center leading-tight">

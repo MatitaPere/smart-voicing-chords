@@ -259,6 +259,23 @@
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+  
+  /* Also apply page-break-avoid to chord cards in the overlay grid */
+  .piano-sheet-content > div > div[class*="bg-card"] {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border-color: #333 !important;
+    background: white !important;
+  }
+  
+  /* Section headers in print */
+  .piano-sheet-content > div > div[class*="col-span-full"] > div {
+    border-left-color: #666 !important;
+    background: #f5f5f5 !important;
+  }
+  .piano-sheet-content > div > div[class*="col-span-full"] span {
+    color: black !important;
+  }
 
   .piano-sheet-label {
     display: block !important;
