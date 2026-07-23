@@ -16,14 +16,16 @@ import type { PianoChord } from "@/data/pianoChords";
 import PianoDiagram from "@/components/PianoDiagram";
 import { getVoicingNoteNames } from "@/lib/music";
 
-interface SheetEntry { type: "chord"; chord: PianoChord; voicingIdx: number; }
+interface SheetChordEntry { type: "chord"; chord: PianoChord; voicingIdx: number; }
+interface SheetSectionHeader { type: "section"; id: string; label: string; }
+type SheetEntry = SheetChordEntry | SheetSectionHeader;
 
 interface SavedSheet {
   id: string;
   name: string;
   createdAt: string;
   source: "piano";
-  entries: { type?: string; label?: string; chordKey?: string; suffix?: string; voicingIndex?: number }[];
+  entries: { type?: string; label?: string; chordKey?: string; suffix?: string; voicingIndex?: number; id?: string }[];
 }
 
 const SHEETS_KEY = "piano-saved-sheets";
@@ -41,7 +43,10 @@ function saveSheetToStorage(sheet: SavedSheet) {
   localStorage.setItem(SHEETS_KEY, JSON.stringify(existing));
 }
 
-function normalizeSheetEntry(entry: SheetEntry): { type?: string; label?: string; chordKey?: string; suffix?: string; voicingIndex?: number } {
+function normalizeSheetEntry(entry: SheetEntry): { type?: string; label?: string; chordKey?: string; suffix?: string; voicingIndex?: number; id?: string } {
+  if (entry.type === "section") {
+    return { type: "section", id: entry.id, label: entry.label };
+  }
   return {
     type: "chord",
     label: entry.chord.label,
@@ -116,7 +121,7 @@ const PianoChords = () => {
   const [refreshCounter, setRefreshCounter] = useState(0);
 
   const addToSheet = useCallback((chord: PianoChord, voicingIdx: number) => {
-    setSheetEntries(prev => [...prev, { type: "chord" as const, chord, voicingIdx }]);
+    setSheetEntries(prev => [...prev, { type: "chord" as const, chord, voicingIdx } as SheetChordEntry]);
   }, []);
 
   const removeFromSheet = useCallback((i: number) => {
@@ -151,6 +156,9 @@ const PianoChords = () => {
   function handleLoadSheet(sheet: SavedSheet) {
     setSheetEntries(
       sheet.entries.map(e => {
+        if (e.type === "section") {
+          return { type: "section" as const, id: e.id || Date.now().toString() + Math.random(), label: e.label || "Section" };
+        }
         const chord = allChords.find(c => c.key === e.chordKey && c.suffix === e.suffix);
         return chord
           ? { type: "chord" as const, chord, voicingIdx: e.voicingIndex ?? 0 }
@@ -192,6 +200,9 @@ const PianoChords = () => {
         if (data.entries && Array.isArray(data.entries)) {
           setSheetEntries(
             data.entries.map((entry: any) => {
+              if (entry.type === "section") {
+                return { type: "section" as const, id: entry.id || Date.now().toString() + Math.random(), label: entry.label || "Section" };
+              }
               const chord = allChords.find((c: PianoChord) => c.key === entry.chordKey && c.suffix === entry.suffix);
               return chord
                 ? { type: "chord" as const, chord, voicingIdx: entry.voicingIndex ?? 0 }
@@ -678,6 +689,8 @@ function PianoSheetOverlay({
 }) {
   const [localEntries, setLocalEntries] = useState<SheetEntry[]>(entries);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
 
   // Initialize from props on mount only
   const initialSyncDone = React.useRef(false);
@@ -717,6 +730,25 @@ function PianoSheetOverlay({
     setLocalEntries(newOrder);
     onReorder(newOrder);
     setDragIndex(null);
+  }
+
+  function handleAddSection() {
+    const newEntry: SheetSectionHeader = { type: "section" as const, id: Date.now().toString() + Math.random(), label: "New Section" };
+    const newOrder = [...localEntries, newEntry];
+    setLocalEntries(newOrder);
+    onReorder(newOrder);
+    setEditingSectionId(newEntry.id);
+    setEditingLabel("New Section");
+  }
+
+  function handleSectionLabelChange(id: string, label: string) {
+    setLocalEntries(prev => prev.map(e => e.type === "section" && e.id === id ? { ...e, label } : e));
+  }
+
+  function handleSectionLabelBlur() {
+    onReorder(localEntries);
+    setEditingSectionId(null);
+    setEditingLabel("");
   }
 
   return (
@@ -774,9 +806,71 @@ function PianoSheetOverlay({
           </div>
         ) : (
           <>
-            <h1 className="text-lg font-bold text-foreground mb-2 piano-sheet-print-title">Piano Chord Reference Sheet</h1>
+            <div className="flex items-center justify-between mb-3 piano-sheet-no-print">
+              <h1 className="text-lg font-bold text-foreground">Piano Chord Reference Sheet</h1>
+              <button
+                onClick={handleAddSection}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-secondary text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Add Section
+              </button>
+            </div>
+            <h1 className="piano-sheet-print-title hidden text-2xl font-bold text-black mb-6">Piano Chord Reference Sheet</h1>
+
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 gap-1.5">
               {localEntries.map((entry, i) => {
+                if (entry.type === "section") {
+                  const isEditing = editingSectionId === entry.id;
+                  return (
+                    <div
+                      key={entry.id}
+                      className="col-span-full flex items-center gap-2"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={(e) => handleDrop(e, i)}
+                      onDragEnd={handleDragEnd}
+                      style={{ opacity: dragIndex === i ? 0.3 : 1, cursor: "grab" }}
+                    >
+                      <div className="flex items-center text-muted-foreground cursor-grab shrink-0 piano-sheet-no-print">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 flex items-center gap-2 bg-accent/15 rounded-lg px-4 py-2 border-l-4 border-accent">
+                        {isEditing ? (
+                          <input
+                            autoFocus
+                            type="text"
+                            value={editingLabel}
+                            onChange={(e) => { setEditingLabel(e.target.value); handleSectionLabelChange(entry.id, e.target.value); }}
+                            onBlur={handleSectionLabelBlur}
+                            onKeyDown={(e) => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
+                            className="flex-1 bg-transparent text-sm font-bold text-foreground outline-none"
+                          />
+                        ) : (
+                          <span
+                            className="flex-1 text-sm font-bold text-foreground cursor-text"
+                            onClick={() => { setEditingSectionId(entry.id); setEditingLabel(entry.label); }}
+                          >
+                            {entry.label}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => onRemove(i)}
+                          className="w-5 h-5 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors shrink-0 piano-sheet-no-print"
+                        >
+                          <Trash2 className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Chord entry
                 const chord = entry.chord;
                 const noteNames = getVoicingNoteNames(chord.key, chord.suffix, chord.voicings[entry.voicingIdx]?.notes || []);
                 return (
